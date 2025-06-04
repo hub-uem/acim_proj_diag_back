@@ -1,6 +1,6 @@
 
 INSERT INTO questionario_modulo (nome, perguntasQntd, descricao, tempo) VALUES
-('Diagnóstico Organizacional', 54, 'Descrição', 40);
+('Diagnóstico Organizacional', 54, 'O Diagnóstico Organizacional é uma ferramenta essencial para entender a saúde da sua empresa. Ele ajuda a identificar pontos fortes e áreas que precisam de melhorias, permitindo que você tome decisões informadas para o futuro do seu negócio.', 40);
 
 INSERT INTO questionario_dimensao (titulo, descricao, tipo, modulo_id, explicacao) VALUES
 ('Estratégia', 'Avalie as questões referentes à ESTRATÉGIA da sua empresa, indicando em uma escala de concordância de 1 a 5 onde 1 significa discordo totalmente e 5 significa concordo totalmente.', 'OBRIGATORIO', 1, 'Explicacao'),
