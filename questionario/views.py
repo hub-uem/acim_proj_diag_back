@@ -246,25 +246,25 @@ class GerarRelatorioModuloView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _avaliar_modulo(self, pontuacao):
-        if 142 <= pontuacao <= 175:
+        if 3201 <= pontuacao <= 4000:
             return "Excelente"
-        elif 106 <= pontuacao <= 141:
+        elif 2401 <= pontuacao <= 3200:
             return "Ótimo"
-        elif 71 <= pontuacao <= 105:
-            return "Médio"
-        elif 35 <= pontuacao <= 70:
+        elif 1601 <= pontuacao <= 2400:
+            return "Neutro"
+        elif 800 <= pontuacao <= 1600:
             return "Insuficiente"
         else:
             return "Fora da faixa de avaliação"
 
     def _avaliar_dimensao(self, pontuacao):
-        if 21 <= pontuacao <= 25:
+        if 401 <= pontuacao <= 500:
             return "Excelente"
-        elif 16 <= pontuacao <= 20:
+        elif 301 <= pontuacao <= 400:
             return "Ótimo"
-        elif 11 <= pontuacao <= 15:
-            return "Médio"
-        elif 5 <= pontuacao <= 10:
+        elif 201 <= pontuacao <= 300:
+            return "Neutro"
+        elif 100 <= pontuacao <= 200:
             return "Insuficiente"
         else:
             return "Fora da faixa de avaliação"
@@ -282,7 +282,7 @@ class GerarRelatorioModuloView(APIView):
             respostas_dimensoes = RespostaDimensao.objects.filter(
                 usuario=usuario,
                 dimensao__modulo=modulo
-            ).select_related('dimensao').order_by('dimensao__titulo')
+            ).select_related('dimensao').order_by('dimensao__id')
 
             if not respostas_dimensoes.exists():
                  return Response(
