@@ -34,12 +34,6 @@ class RespostaModulo(models.Model):
 
 
 class Dimensao(models.Model):
-    TIPO_CHOICES = [
-        ('OBRIGATORIO', 'Obrigatório'),
-        ('COMERCIO', 'Comércio'),
-        ('SERVICO', 'Serviço'),
-        ('INDUSTRIA', 'Indústria'),
-    ]
 
     id = models.AutoField(primary_key=True)
     titulo = models.CharField(max_length=255, unique=True)
@@ -66,8 +60,14 @@ class RespostaDimensao(models.Model):
 
 
 class Pergunta(models.Model):
+    TIPO_CHOICES = [
+        ('NENHUM', 'Nenhum'),
+        ('MEI', 'Mei'),
+    ]
+
     id = models.AutoField(primary_key=True)
     pergunta = models.TextField()
     peso = models.IntegerField(default=1)
+    exclusao = models.CharField(max_length=20, choices=TIPO_CHOICES)
     dimensao = models.ForeignKey(
         Dimensao, on_delete=models.CASCADE, related_name='perguntas', default=None)

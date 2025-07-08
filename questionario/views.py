@@ -26,6 +26,10 @@ class QuestionarioView(APIView):
 
     def get(self, request):
         try:
+            usuario = request.user if request.user.is_authenticated else None
+            porte_usuario = None
+            if usuario and hasattr(usuario, "porte"):
+                porte_usuario = usuario.porte
 
             modulos = Modulo.objects.prefetch_related(
                 'dimensoes__perguntas').all()
@@ -37,12 +41,24 @@ class QuestionarioView(APIView):
                 dadosDimensoes = []
 
                 for dimensao in dimensoesDoModulo:
+                    # Filtra perguntas conforme o porte do usuário
+                    perguntas_qs = dimensao.perguntas.all()
+                    if porte_usuario == "MEI":
+                        perguntas_qs = perguntas_qs.exclude(exclusao="MEI")
+
+                    perguntasData = []
+                    for p in perguntas_qs:
+                        perguntasData.append({
+                            'id': p.id,
+                            'pergunta': p.pergunta,
+                        })
 
                     dadosDimensao = {
                         'dimensaoTitulo': dimensao.titulo,
                         'descricao': dimensao.descricao,
                         'tipo': dimensao.get_tipo_display(),
                         'explicacao': dimensao.explicacao,
+                        'perguntas': perguntasData
                     }
                     dadosDimensoes.append(dadosDimensao)
 
@@ -375,40 +391,41 @@ class GerarRelatorioModuloView(APIView):
 
             labels = [resp.dimensao.titulo for resp in respostas_dimensoes]
             values = [resp.valorFinal for resp in respostas_dimensoes]
-            if len(labels) < 3:
-                labels += [''] * (3 - len(labels))
-                values += [0] * (3 - len(values))
-            num_vars = len(labels)
+            if len(labels) < 1:
+                labels = ['Sem dados']
+                values = [0]
+            valores_comparacao = [300 for _ in labels]  # Exemplo: 300 para cada dimensão
 
-            angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-            values += values[:1]
-            angles += angles[:1]
+            x = np.arange(len(labels))  # posições das barras
+            width = 0.35  # largura das barras
 
-            valores_comparacao = [300 for _ in range(num_vars)]  # Exemplo: 300 para cada dimensão
-            valores_comparacao += valores_comparacao[:1]
+            fig, ax = plt.subplots(figsize=(8, 5))
+            rects1 = ax.bar(x - width/2, values, width, label='Seu resultado', color='#4bd360')
+            rects2 = ax.bar(x + width/2, valores_comparacao, width, label='Média', color='#ec5353')
 
-            fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
-            # Plot valor do usuário (verde)
-            ax.plot(angles, values, color='#4bd360', linewidth=2, label='Seu resultado')
-            ax.fill(angles, values, color='#4bd360', alpha=0.5)
-            # Plot valor de comparação (vermelho)
-            ax.plot(angles, valores_comparacao, color='#ec5353', linewidth=2, label='Média')
-            ax.fill(angles, valores_comparacao, color='#ec5353', alpha=1)
-
-            ax.set_xticks(angles[:-1])
-            ax.set_xticklabels(labels, fontsize=10)
-            ax.set_yticklabels([])
-            ax.set_title('Desempenho', y=1.20)
-            ax.legend(loc='upper right', bbox_to_anchor=(1.5, 1.5))
+            ax.set_ylabel('Pontuação')
+            ax.set_title('Desempenho')
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels, rotation=20, ha='right')
+            ax.legend(loc='upper right')
             plt.tight_layout()
+
+            # Adiciona valores acima das barras
+            for rect in rects1 + rects2:
+                height = rect.get_height()
+                ax.annotate(f'{int(height)}',
+                            xy=(rect.get_x() + rect.get_width() / 2, height),
+                            xytext=(0, 3),  # 3 points vertical offset
+                            textcoords="offset points",
+                            ha='center', va='bottom', fontsize=8)
 
             img_buffer = io.BytesIO()
             plt.savefig(img_buffer, format='PNG', bbox_inches='tight', dpi=120)
             plt.close(fig)
             img_buffer.seek(0)
-            radar_img = ImageReader(img_buffer)
+            col_img = ImageReader(img_buffer)
 
-            c.drawImage(radar_img, x_center, y_position - img_height, width=img_width, height=img_height)
+            c.drawImage(col_img, x_center, y_position - img_height, width=img_width, height=img_height)
             y_position -= (img_height + 0.5*cm)
 
             c.save()

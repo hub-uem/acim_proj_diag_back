@@ -39,11 +39,28 @@ class UserAccountManager(BaseUserManager):
 
 
 class UserAccount(AbstractBaseUser, PermissionsMixin):
+    PORTE_CHOICES = [
+        ('PL', 'Profissional Liberal'),
+        ('MEI', 'Mei'),
+        ('EPP', 'Epp'),
+        ('ME', 'Me'),
+        ('MEDIA', 'Média'),
+        ('GRANDE', 'Grande'),
+    ]
+
+    SETOR_CHOICES = [
+        ('Setor A', 'Setor A'),
+        ('Setor B', 'Setor B'),
+        ('Setor C', 'Setor C'),
+    ]
+
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(max_length=255, unique=True)
     cnpj = BRCNPJField(max_length=14, unique=True)
     cpf = models.CharField(max_length=14, unique=False, default="00000000000")
     password = models.CharField(max_length=255)
+    porte = models.CharField(max_length=20, choices=PORTE_CHOICES)
+    setor = models.CharField(max_length=20, choices=SETOR_CHOICES)
 
     registration_date = models.DateTimeField(default=timezone.now)
     deactivation_date = models.DateTimeField(null=True, blank=True)
