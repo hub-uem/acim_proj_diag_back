@@ -427,7 +427,13 @@ class GerarRelatorioModuloView(APIView):
             if not labels:
                 labels = ['Sem dados']
                 values = [0]
-            valores_comparacao = [300 for _ in labels]  # Exemplo: 300 para cada dimensão
+
+            if setor_empresa == 'Setor A':
+                valores_comparacao = [200 for _ in labels]
+            elif setor_empresa == 'Setor B':
+                valores_comparacao = [300 for _ in labels]
+            else:
+                valores_comparacao = [400 for _ in labels]
 
             x = np.arange(len(labels))  # posições das barras
             width = 0.35  # largura das barras
@@ -440,7 +446,7 @@ class GerarRelatorioModuloView(APIView):
             ax.set_title('Desempenho')
             ax.set_xticks(x)
             ax.set_xticklabels(labels, rotation=20, ha='right')
-            ax.legend(loc='upper right')
+            ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
             plt.tight_layout()
 
             # Adiciona valores acima das barras
