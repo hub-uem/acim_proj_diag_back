@@ -252,7 +252,7 @@ class GerarRelatorioModuloView(APIView):
         if 3201 <= pontuacao <= 4000:
             return "Excelente"
         elif 2401 <= pontuacao <= 3200:
-            return "Ótimo"
+            return "Suficiente"
         elif 1601 <= pontuacao <= 2400:
             return "Neutro"
         elif 800 <= pontuacao <= 1600:
@@ -264,7 +264,7 @@ class GerarRelatorioModuloView(APIView):
         if 401 <= pontuacao <= 500:
             return "Excelente"
         elif 301 <= pontuacao <= 400:
-            return "Ótimo"
+            return "Suficiente"
         elif 201 <= pontuacao <= 300:
             return "Neutro"
         elif 100 <= pontuacao <= 200:
@@ -384,13 +384,22 @@ class GerarRelatorioModuloView(APIView):
             values += values[:1]
             angles += angles[:1]
 
+            valores_comparacao = [300 for _ in range(num_vars)]  # Exemplo: 300 para cada dimensão
+            valores_comparacao += valores_comparacao[:1]
+
             fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
-            ax.plot(angles, values, color='#4bd360', linewidth=2)
-            ax.fill(angles, values, color='#4bd360', alpha=0.25)
+            # Plot valor do usuário (verde)
+            ax.plot(angles, values, color='#4bd360', linewidth=2, label='Seu resultado')
+            ax.fill(angles, values, color='#4bd360', alpha=0.5)
+            # Plot valor de comparação (vermelho)
+            ax.plot(angles, valores_comparacao, color='#ec5353', linewidth=2, label='Média')
+            ax.fill(angles, valores_comparacao, color='#ec5353', alpha=1)
+
             ax.set_xticks(angles[:-1])
             ax.set_xticklabels(labels, fontsize=10)
             ax.set_yticklabels([])
-            ax.set_title('Desempenho por Dimensão', y=1.08)
+            ax.set_title('Desempenho', y=1.20)
+            ax.legend(loc='upper right', bbox_to_anchor=(1.5, 1.5))
             plt.tight_layout()
 
             img_buffer = io.BytesIO()
