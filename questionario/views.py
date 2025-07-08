@@ -22,8 +22,6 @@ from reportlab.lib.utils import ImageReader
 
 
 class QuestionarioView(APIView):
-    # Permite não estar autenticado para testes
-    permission_classes = [AllowAny]
 
     def get(self, request):
         try:
@@ -74,7 +72,6 @@ class QuestionarioView(APIView):
 
 
 class ModuloView(APIView):
-    permission_classes = [AllowAny]
 
     def get(self, request, nomeModulo):
         try:
