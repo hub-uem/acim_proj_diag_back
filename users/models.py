@@ -9,16 +9,14 @@ from django.utils import timezone
 
 
 class UserAccountManager(BaseUserManager):
-    def create_user(self, email, password=None, **kwargs):
+    def create_user(self, email, password=None, **extra_fields):
+        print("EXTRA_FIELDS:", extra_fields)
         if not email:
             raise ValueError('Usuários devem ter um endereço de email.')
 
         email = self.normalize_email(email)
 
-        user = self.model(
-            email=email,
-            **kwargs,
-        )
+        user = self.model(email=email, **extra_fields)
 
         user.set_password(password)
         user.save(using=self._db)
@@ -57,10 +55,8 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(max_length=255, unique=True)
     cnpj = BRCNPJField(max_length=14, unique=True)
-    cpf = models.CharField(max_length=14, unique=False, default="00000000000")
-    password = models.CharField(max_length=255)
-    porte = models.CharField(max_length=20, choices=PORTE_CHOICES)
-    setor = models.CharField(max_length=20, choices=SETOR_CHOICES)
+    porte = models.CharField(max_length=20, choices=PORTE_CHOICES, default='PL')
+    setor = models.CharField(max_length=20, choices=SETOR_CHOICES, default='Setor A')
 
     registration_date = models.DateTimeField(default=timezone.now)
     deactivation_date = models.DateTimeField(null=True, blank=True)
@@ -72,7 +68,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     objects = UserAccountManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'cnpj']
+    REQUIRED_FIELDS = ['username', 'cnpj', 'porte', 'setor']
 
     def __str__(self):
         return self.email

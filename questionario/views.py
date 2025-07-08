@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import JsonResponse
 from users.models import UserAccount
 from .models import Modulo, Dimensao, Pergunta, RespostaDimensao, RespostaModulo
@@ -41,10 +42,6 @@ class QuestionarioView(APIView):
                 dadosDimensoes = []
 
                 for dimensao in dimensoesDoModulo:
-                    # Filtra perguntas conforme o porte do usuário
-                    perguntas_qs = dimensao.perguntas.all()
-                    if porte_usuario == "MEI":
-                        perguntas_qs = perguntas_qs.exclude(exclusao="MEI")
 
                     perguntasData = []
                     for p in perguntas_qs:
@@ -56,7 +53,6 @@ class QuestionarioView(APIView):
                     dadosDimensao = {
                         'dimensaoTitulo': dimensao.titulo,
                         'descricao': dimensao.descricao,
-                        'tipo': dimensao.get_tipo_display(),
                         'explicacao': dimensao.explicacao,
                         'perguntas': perguntasData
                     }
@@ -82,8 +78,30 @@ class ModuloView(APIView):
 
     def get(self, request, nomeModulo):
         try:
+
+            usuario = request.user if request.user.is_authenticated else None
+            porte_usuario = None
+            if usuario and hasattr(usuario, "porte"):
+                porte_usuario = usuario.porte
+
+
+            perguntas_queryset = Pergunta.objects.all()
+            if porte_usuario == "MEI":
+                perguntas_queryset = perguntas_queryset.exclude(exclusao='MEI')
+
+            prefetch_dimensoes_com_perguntas_filtradas = Prefetch(
+                'dimensoes',  # O campo a ser pré-buscado no modelo Modulo
+                queryset=Dimensao.objects.prefetch_related(
+                    Prefetch(
+                        'perguntas',  # O campo a ser pré-buscado no modelo Dimensao
+                        queryset=perguntas_queryset,
+                        to_attr='perguntas_filtradas'  # Armazena o resultado filtrado aqui
+                    )
+                )
+            )
+
             moduloObj = get_object_or_404(
-                Modulo.objects.prefetch_related('dimensoes__perguntas'),
+                Modulo.objects.prefetch_related(prefetch_dimensoes_com_perguntas_filtradas),
                 nome=nomeModulo
             )
 
@@ -91,20 +109,21 @@ class ModuloView(APIView):
 
             for dimensao in moduloObj.dimensoes.all():
                 perguntasData = []
-                for p in dimensao.perguntas.all():
-                    perguntasData.append({
-                        'id': p.id,
-                        'pergunta': p.pergunta,
-                    })
+                if hasattr(dimensao, 'perguntas_filtradas'):
+                        for p in dimensao.perguntas_filtradas:
+                            perguntasData.append({
+                                'id': p.id,
+                                'pergunta': p.pergunta,
+                            })
 
-                dados_dimensao = {
-                    'dimensaoTitulo': dimensao.titulo,
-                    'descricao': dimensao.descricao,
-                    'tipo': dimensao.get_tipo_display(),
-                    'explicacao': dimensao.explicacao,
-                    'perguntas': perguntasData
-                }
-                dadosDimensoes.append(dados_dimensao)
+                if perguntasData:
+                    dados_dimensao = {
+                        'dimensaoTitulo': dimensao.titulo,
+                        'descricao': dimensao.descricao,
+                        'explicacao': dimensao.explicacao,
+                        'perguntas': perguntasData,
+                    }
+                    dadosDimensoes.append(dados_dimensao)
 
             response_data = {
                 'nomeModulo': moduloObj.nome,
@@ -333,7 +352,21 @@ class GerarRelatorioModuloView(APIView):
             p.wrapOn(c, content_width, height)
             p_height = p.height
             p.drawOn(c, margin_left, y_position - p_height)
-            y_position -= (p_height + 0.2*cm)
+            y_position -= (p_height + 0.1*cm)
+
+            porte_empresa = getattr(usuario, 'porte', 'Não informado')
+            p = Paragraph(f"<b>Porte da Empresa:</b> {porte_empresa}", style_body)
+            p.wrapOn(c, content_width, height)
+            p_height = p.height
+            p.drawOn(c, margin_left, y_position - p_height)
+            y_position -= (p_height + 0.1*cm)
+
+            setor_empresa = getattr(usuario, 'setor', 'Não informado')
+            p = Paragraph(f"<b>Setor de Atuação:</b> {setor_empresa}", style_body)
+            p.wrapOn(c, content_width, height)
+            p_height = p.height
+            p.drawOn(c, margin_left, y_position - p_height)
+            y_position -= (p_height + 0.5*cm)
 
             p = Paragraph(f"<b>Módulo:</b> {modulo.nome}", style_h2)
             p.wrapOn(c, content_width, height)
@@ -382,8 +415,8 @@ class GerarRelatorioModuloView(APIView):
                     c.showPage() 
                     y_position = height - 1.5*cm
 
-            img_width = 10 * cm
-            img_height = 10 * cm
+            img_width = 17 * cm
+            img_height =10 * cm
             x_center = (width - img_width) / 2  # Centraliza na página
             if y_position - img_height < 2*cm:
                 c.showPage()
@@ -391,7 +424,7 @@ class GerarRelatorioModuloView(APIView):
 
             labels = [resp.dimensao.titulo for resp in respostas_dimensoes]
             values = [resp.valorFinal for resp in respostas_dimensoes]
-            if len(labels) < 1:
+            if not labels:
                 labels = ['Sem dados']
                 values = [0]
             valores_comparacao = [300 for _ in labels]  # Exemplo: 300 para cada dimensão
@@ -399,9 +432,9 @@ class GerarRelatorioModuloView(APIView):
             x = np.arange(len(labels))  # posições das barras
             width = 0.35  # largura das barras
 
-            fig, ax = plt.subplots(figsize=(8, 5))
+            fig, ax = plt.subplots(figsize=(10, 5))
             rects1 = ax.bar(x - width/2, values, width, label='Seu resultado', color='#4bd360')
-            rects2 = ax.bar(x + width/2, valores_comparacao, width, label='Média', color='#ec5353')
+            rects2 = ax.bar(x + width/2, valores_comparacao, width, label=('Média do ' + setor_empresa), color='#ec5353')
 
             ax.set_ylabel('Pontuação')
             ax.set_title('Desempenho')
