@@ -48,7 +48,7 @@ class RespostaDimensao(models.Model):
     dataResposta = models.DateTimeField(auto_now=True)
     dimensao = models.ForeignKey(
         Dimensao, on_delete=models.CASCADE, related_name='respostas', default=None)
-    resposta_modulo = models.ForeignKey(RespostaModulo, on_delete=models.CASCADE)
+    resposta_modulo = models.ForeignKey(RespostaModulo, on_delete=models.CASCADE, default=None)
 
     class Meta:
         verbose_name_plural = 'Respostas das Dimensões'
