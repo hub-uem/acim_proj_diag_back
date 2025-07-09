@@ -4,31 +4,28 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch, cm
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, Spacer
+from reportlab.platypus import Paragraph
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from django.db.models import Prefetch
-from django.http import JsonResponse
-from users.models import UserAccount
+from django.db.models import Prefetch, Max
+from django.utils import timezone
 from .models import Modulo, Dimensao, Pergunta, RespostaDimensao, RespostaModulo
+from .serializers import RelatorioSerializer, RespostaModuloSerializer
+from datetime import datetime, timedelta
 from django.shortcuts import get_object_or_404
-import json
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from reportlab.lib.utils import ImageReader
-
 
 class QuestionarioView(APIView):
 
     def get(self, request):
         try:
-            usuario = request.user if request.user.is_authenticated else None
-            porte_usuario = None
-            if usuario and hasattr(usuario, "porte"):
-                porte_usuario = usuario.porte
 
             modulos = Modulo.objects.prefetch_related(
                 'dimensoes__perguntas').all()
@@ -41,18 +38,10 @@ class QuestionarioView(APIView):
 
                 for dimensao in dimensoesDoModulo:
 
-                    perguntasData = []
-                    for p in perguntas_qs:
-                        perguntasData.append({
-                            'id': p.id,
-                            'pergunta': p.pergunta,
-                        })
-
                     dadosDimensao = {
                         'dimensaoTitulo': dimensao.titulo,
                         'descricao': dimensao.descricao,
                         'explicacao': dimensao.explicacao,
-                        'perguntas': perguntasData
                     }
                     dadosDimensoes.append(dadosDimensao)
 
@@ -69,7 +58,6 @@ class QuestionarioView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class ModuloView(APIView):
 
@@ -134,7 +122,6 @@ class ModuloView(APIView):
                 {'error': f'Ocorreu um erro interno no servidor: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 class SalvarRespostasModuloView(APIView):
     permission_classes = [IsAuthenticated]
@@ -230,32 +217,35 @@ class SalvarRespostasModuloView(APIView):
                 'detalhes': erros,
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        dimensoesAtualizadas = []
+        dimensoesCriadas = []
         respostaModuloStatus = None
         valorFinalModulo = 0
 
         try:
+
+            respostaModuloObj = RespostaModulo.objects.create(
+                usuario=usuario,
+                modulo=modulo,
+                valorFinal=valorFinalModulo
+            )
+            respostaModuloStatus = 'Criada'
+        
             for dimensaoPk, somaTotal in somasPorDimensao.items():
-                respostaDimensaoObj, created = RespostaDimensao.objects.update_or_create(
+                RespostaDimensao.objects.create(
                     usuario=usuario,
                     dimensao_id=dimensaoPk,
-                    defaults={'valorFinal': somaTotal}
+                    valorFinal=somaTotal,
+                    resposta_modulo=respostaModuloObj
                 )
-                dimensoesAtualizadas.append({
+                dimensoesCriadas.append({
                     'dimensaoId': dimensaoPk,
-                    'tituloDimensao': respostaDimensaoObj.dimensao.titulo,
                     'valorFinal': somaTotal,
-                    'status': 'Criada' if created else 'Atualizada'
+                    'status': 'Criada'
                 })
 
             valorFinalModulo = sum(somasPorDimensao.values())
-
-            respostaModuloObj, created_modulo = RespostaModulo.objects.update_or_create(
-                usuario=usuario,
-                modulo=modulo,
-                defaults={'valorFinal': valorFinalModulo}
-            )
-            respostaModuloStatus = 'Criada' if created_modulo else 'Atualizada'
+            respostaModuloObj.valorFinal = valorFinalModulo
+            respostaModuloObj.save()
 
         except Exception as e:
             return Response(
@@ -272,7 +262,7 @@ class SalvarRespostasModuloView(APIView):
                     'valorFinal': valorFinalModulo,
                     'status': respostaModuloStatus
                 },
-                'dimensoesAtualizadas': dimensoesAtualizadas
+                'dimensoesCriadas': dimensoesCriadas
             },
             status=status.HTTP_200_OK
         )
@@ -304,26 +294,34 @@ class GerarRelatorioModuloView(APIView):
         else:
             return "Fora da faixa de avaliação"
 
-    def get(self, request, nomeModulo):
+    def get(self, request, identificador):
         usuario = request.user
 
         try:
-            modulo = get_object_or_404(Modulo, nome=nomeModulo)
+            if identificador.isdigit():
+                resposta_modulo = get_object_or_404(
+                    RespostaModulo, id=int(identificador), usuario=usuario
+                )
+                modulo = resposta_modulo.modulo
+            else:
+                modulo = get_object_or_404(
+                    Modulo, nome=identificador
+                )
 
-            resposta_modulo = get_object_or_404(
-                RespostaModulo, usuario=usuario, modulo=modulo
-            )
+                resposta_modulo = RespostaModulo.objects.filter(
+                    usuario=usuario, modulo=modulo
+                ).order_by('-dataResposta').first()
 
             respostas_dimensoes = RespostaDimensao.objects.filter(
                 usuario=usuario,
-                dimensao__modulo=modulo
-            ).select_related('dimensao').order_by('dimensao__id')
+                resposta_modulo=resposta_modulo
+            ).select_related('dimensao').order_by('dimensao__titulo')
 
             if not respostas_dimensoes.exists():
-                 return Response(
-                     {'error': f'Respostas das dimensões para o módulo "{nomeModulo}" não encontradas para este usuário.'},
-                     status=status.HTTP_404_NOT_FOUND
-                 )
+                return Response(
+                    {'error': f'Respostas das dimensões para o módulo "{modulo.nome}" não encontradas para este usuário.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
@@ -468,19 +466,19 @@ class GerarRelatorioModuloView(APIView):
 
             buffer.seek(0)
             response = HttpResponse(buffer, content_type='application/pdf')
-            filename = f"relatorio_{nomeModulo.replace(' ', '_')}_{usuario.username}.pdf"
+            filename = f"relatorio_{identificador.replace(' ', '_')}_{usuario.username}.pdf"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
             return response
 
         except Modulo.DoesNotExist:
             return Response(
-                {'error': f'Módulo com nome "{nomeModulo}" não encontrado.'},
+                {'error': f'Módulo com nome "{modulo.nome}" não encontrado.'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except RespostaModulo.DoesNotExist:
              return Response(
-                {'error': f'O usuário {usuario.username} ainda não respondeu ao módulo "{nomeModulo}".'},
+                {'error': f'O usuário {usuario.username} ainda não respondeu ao módulo "{modulo.nome}".'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
@@ -488,3 +486,172 @@ class GerarRelatorioModuloView(APIView):
                 {'error': f'Erro ao gerar o relatório PDF: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+# VIEW HUB
+class SearchRelatorio(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        data_str = request.GET.get('data')  # espera "YYYY-MM-DD"
+
+        if not data_str:
+            return Response({'error': 'Data não informada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            data_obj = datetime.strptime(data_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Formato de data inválido. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_datetime = timezone.make_aware(datetime.combine(data_obj, datetime.min.time()))
+        end_datetime = timezone.make_aware(datetime.combine(data_obj, datetime.max.time()))
+
+        relatorios = RespostaModulo.objects.filter(
+            usuario=request.user,
+            dataResposta__range=(start_datetime, end_datetime)
+        )
+        serializer = RelatorioSerializer(relatorios, many=True)
+        return Response({'resultados': serializer.data})
+
+class SearchAllDatesRelatorio(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        registros = RespostaModulo.objects.filter(usuario=user) \
+            .order_by('dataResposta') \
+            .values('dataResposta', 'valorFinal')
+        
+        dados = [
+            {
+                "data": item['dataResposta'].date().isoformat(),
+                "valorFinal": item['valorFinal']
+            } for item in registros
+        ]
+        return Response(dados)
+
+class CheckDeadlineResponde(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, identificador):
+        usuario = request.user
+
+        try:
+            if identificador.isdigit():
+                modulo = get_object_or_404(Modulo, id=int(identificador))
+            else:
+                modulo = get_object_or_404(Modulo, nome=identificador)
+
+            ultima_resposta = RespostaModulo.objects.filter(
+                usuario=usuario, modulo=modulo
+            ).order_by('-dataResposta').first()
+
+            if ultima_resposta:
+                prazo_minimo = ultima_resposta.dataResposta + timedelta(days=2)
+                now = timezone.now()
+
+                if now < prazo_minimo:
+                    return Response({
+                        "ok_response": False,
+                        "message": f"Você só poderá responder novamente após {prazo_minimo.strftime('%d/%m/%Y às %H:%M')}."
+                    }, status=status.HTTP_200_OK)
+
+            return Response({
+                "ok_response": True,
+                "message": "Você pode responder este módulo novamente."
+            }, status=status.HTTP_200_OK)
+
+        except Modulo.DoesNotExist:
+            return Response(
+                {"error": "Módulo não encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class SearchLastDimensaoResultados(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Buscar dimensoes e última resposta do usuário logado
+        dimensoes = Dimensao.objects.all()
+
+        dados = []
+
+        for d in dimensoes:
+            # Última resposta do usuário logado para essa dimensão
+            ultima_user = RespostaDimensao.objects.filter(
+                usuario=user,
+                dimensao=d
+            ).order_by('-dataResposta').first()
+
+            valor_final = ultima_user.valorFinal if ultima_user else None
+            data_resp = ultima_user.dataResposta if ultima_user else None
+
+            # Para outros usuários, buscar última resposta de cada um para essa dimensão
+            # Busca o id do usuário e a data mais recente para cada usuário (agrupamento)
+            ultimas_datas_outros = RespostaDimensao.objects.filter(
+                dimensao=d
+            ).exclude(usuario=user).values('usuario').annotate(
+                max_data=Max('dataResposta')
+            )
+
+            # Agora, para cada usuário, pega o valorFinal da última resposta
+            valores_outros = []
+            for entry in ultimas_datas_outros:
+                resposta = RespostaDimensao.objects.filter(
+                    usuario=entry['usuario'],
+                    dimensao=d,
+                    dataResposta=entry['max_data']
+                ).first()
+                if resposta:
+                    valores_outros.append(resposta.valorFinal)
+
+            media_outros = round(sum(valores_outros) / len(valores_outros), 2) if valores_outros else 0
+
+            dados.append({
+                "dimensao": d.titulo,
+                "valorFinal": valor_final,
+                "data": data_resp.date().isoformat() if data_resp else None,
+                "media": media_outros,
+            })
+
+        return Response(dados)
+    
+class RespostaModuloViewSet(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = RespostaModuloSerializer
+
+    def get(self, request):
+        user = request.user
+        pk = request.GET.get('modulo_id')
+        resposta_modulo = get_object_or_404(RespostaModulo, id=pk, usuario=user)
+
+        dimensoes = Dimensao.objects.all()
+        media_dimensoes = {}
+
+        for d in dimensoes:
+
+            ultimas_datas_outros = RespostaDimensao.objects.filter(
+                    dimensao=d
+                ).exclude(usuario=user).values('usuario').annotate(
+                    max_data=Max('dataResposta')
+                )
+
+            # Agora, para cada usuário, pega o valorFinal da última resposta
+            valores_outros = []
+            for entry in ultimas_datas_outros:
+                resposta = RespostaDimensao.objects.filter(
+                    usuario=entry['usuario'],
+                    dimensao=d,
+                    dataResposta=entry['max_data']
+                ).first()
+                if resposta:
+                    valores_outros.append(resposta.valorFinal)
+
+            media_outros = round(sum(valores_outros) / len(valores_outros), 2) if valores_outros else 0
+            media_dimensoes[d.id] = media_outros
+            
+        media_dimensoes_str = {str(k): v for k, v in media_dimensoes.items()}
+        serializer = RespostaModuloSerializer(resposta_modulo, context={'media_dimensoes': media_dimensoes_str})
+        
+        return Response(serializer.data,)
