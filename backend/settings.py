@@ -183,6 +183,7 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ['true', '1', 't']
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'apikey')  
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')  
 DEFAULT_FROM_EMAIL = 'lucalvex25@gmail.com' 
+CONTACT_EMAIL = 'lucalvex25@gmail.com'
 
 DOMAIN = getenv('DOMAIN', 'http://localhost:8000')
 SITE_NAME = 'Projeto Diagnóstico'

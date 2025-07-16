@@ -2,7 +2,9 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from djoser.social.views import ProviderAuthView
+from rest_framework.permissions import AllowAny
+from django.core.mail import send_mail
+from django.conf import settings
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -39,7 +41,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
         return response
 
-
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get('refresh')
@@ -64,7 +65,6 @@ class CustomTokenRefreshView(TokenRefreshView):
 
         return response
 
-
 class CustomTokenVerifyView(TokenVerifyView):
     def post(self, request, *args, **kwargs):
         access_token = request.COOKIES.get('access')
@@ -74,7 +74,6 @@ class CustomTokenVerifyView(TokenVerifyView):
 
         return super().post(request, *args, **kwargs)
 
-
 class LogoutView(APIView):
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
@@ -82,3 +81,33 @@ class LogoutView(APIView):
         response.delete_cookie('refresh')
 
         return response
+
+class ContatoEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        name = request.data.get('name')
+        email = request.data.get('email')
+        subject = request.data.get('subject', 'Mensagem de contato')
+        message = request.data.get('message')
+
+        body = f"""
+        Nova mensagem de contato:
+
+        Nome: {name}
+        Email: {email}
+        Assunto: {subject}
+
+        Mensagem:
+        {message}
+        """
+
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.CONTACT_EMAIL],
+            fail_silently=False,
+        )
+
+        return Response({'success': True})
