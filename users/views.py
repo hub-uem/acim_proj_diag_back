@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.core.mail import send_mail
-from django.conf import settings
+from backend import settings
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -92,14 +92,19 @@ class ContatoEmailView(APIView):
         message = request.data.get('message')
 
         body = f"""
-        Nova mensagem de contato:
+        MENSAGEM SOLICITADA PARA SUPORTE:
 
+        Informações do solicitante:
         Nome: {name}
         Email: {email}
         Assunto: {subject}
 
         Mensagem:
         {message}
+
+
+        Associação Comercial e Empresarial de Maringá - ACIM
+        Maringá, Paraná 
         """
 
         send_mail(
