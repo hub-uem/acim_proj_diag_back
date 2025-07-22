@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Prefetch, Max
 from django.utils import timezone
-from .models import Modulo, Dimensao, Pergunta, RespostaDimensao, RespostaModulo
+from .models import Modulo, Dimensao, Pergunta, RespostaDimensao, RespostaModulo, RespostaModuloIncompleta
 from .serializers import RelatorioSerializer, RespostaModuloSerializer
 from datetime import datetime, timedelta
 from django.shortcuts import get_object_or_404
@@ -110,9 +110,29 @@ class ModuloView(APIView):
                     }
                     dadosDimensoes.append(dados_dimensao)
 
+            nextDimensionIndex = 0
+            if usuario:
+                resposta_incompleta = RespostaModuloIncompleta.objects.filter(usuario=usuario, modulo=moduloObj).first()
+                if resposta_incompleta and resposta_incompleta.respostas:
+                    respondidas = list(resposta_incompleta.respostas.keys())
+                    for idx, dim in enumerate(dadosDimensoes):
+                        if dim['dimensaoTitulo'] not in respondidas:
+                            nextDimensionIndex = idx
+                            break
+                    else:
+                        nextDimensionIndex = len(dadosDimensoes)
+
+            respondidas = []
+            if resposta_incompleta and resposta_incompleta.respostas:
+                respondidas = list(resposta_incompleta.respostas.keys())
+
+
             response_data = {
                 'nomeModulo': moduloObj.nome,
-                'dimensoes': dadosDimensoes
+                'dimensoes': dadosDimensoes,
+                'nextDimensionIndex': nextDimensionIndex,
+                'respondidads': respondidas,
+                'respostasIncompletas': resposta_incompleta.respostas if resposta_incompleta else {},
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
@@ -266,6 +286,37 @@ class SalvarRespostasModuloView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+class SalvarRespostaIncompletaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        usuario = request.user
+        nome_modulo = request.data.get('nomeModulo')
+        dimensao_titulo = request.data.get('dimensaoTitulo')
+        respostas = request.data.get('respostas')
+
+        if not nome_modulo or not dimensao_titulo or not isinstance(respostas, list):
+            return Response({'error': 'Dados insuficientes.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        modulo = get_object_or_404(Modulo, nome=nome_modulo)
+        dimensao = get_object_or_404(Dimensao, titulo=dimensao_titulo, modulo=modulo)
+
+        registro_dimensao = {
+            'dimensao': dimensao.titulo,
+            'respostas': respostas
+        }
+        obj, created = RespostaModuloIncompleta.objects.get_or_create(
+            usuario=usuario,
+            modulo=modulo,
+            defaults={'respostas': {}}
+        )
+        dados = obj.respostas or {}
+        dados[dimensao.titulo] = registro_dimensao
+        obj.respostas = dados
+        obj.save()
+
+        return Response({'message': 'Respostas incompletas salvas com sucesso.'}, status=status.HTTP_200_OK)
 
 class GerarRelatorioModuloView(APIView):
     permission_classes = [IsAuthenticated]

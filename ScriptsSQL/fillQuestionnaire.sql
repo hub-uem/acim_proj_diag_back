@@ -17,7 +17,7 @@ INSERT INTO questionario_pergunta (pergunta, dimensao_id, peso, exclusao) VALUES
 ('Minha empresa monitora os resultados e metas de forma periódica e sistemática.', 1, 17, 'NENHUM'),
 ('Minha empresa possui uma visão clara de onde quer chegar nos próximos anos.', 1, 15, 'NENHUM'),
 ('Minha empresa e toda a equipe seguem consistentemente seus pilares estratégicos (missão, visão e valores).', 1, 10, 'MEI'),
-('Minha empresa define e comunica claramente seus objetivos estratégicos para toda a equipe.', 1, 1, 'NENHUM'),
+('Minha empresa define e comunica claramente seus objetivos estratégicos para toda a equipe.', 1, 13, 'NENHUM'),
 ('Os colaboradores da minha empresa entendem como seu trabalho contribui para os objetivos estratégicos.', 1, 15, 'MEI'),
 ('Os valores e a cultura organizacional da minha empresa são reforçados e praticados no dia a dia.', 1, 13, 'MEI'),
 
