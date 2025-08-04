@@ -157,7 +157,7 @@ class SalvarRespostasModuloView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        respostasData = request.data.get('respostas')
+        respostasData = timezone.localtime(request.data.get('respostas'))
 
         if respostasData is None:
             return Response(
@@ -195,22 +195,22 @@ class SalvarRespostasModuloView(APIView):
                 erros.append(f"Item {idx+1}: Não é um objeto JSON válido.")
                 continue
 
-            perguntaId = resposta_info.get('perguntaId')
+            perguntaId = resposta_info.get('id')
             valor = resposta_info.get('valor')
 
             if perguntaId is None:
-                erros.append(f"Item {idx+1}: Chave 'perguntaId' ausente.")
+                erros.append(f"Item {idx+1}: Chave 'id' ausente.")
                 continue
             if valor is None:
                 erros.append(
-                    f"Item {idx+1} (Pergunta ID {perguntaId}): Chave 'valor' ausente.")
+                    f"Item {idx+1} (ID {perguntaId}): Chave 'valor' ausente.")
                 continue
 
             try:
                 valor_int = int(valor)
             except (ValueError, TypeError):
                 erros.append(
-                    f"Item {idx+1} (Pergunta ID {perguntaId}): 'valor' deve ser um número inteiro (recebeu '{valor}').")
+                    f"Item {idx+1} (ID {perguntaId}): 'valor' deve ser um número inteiro (recebeu '{valor}').")
                 continue
 
             perguntaObj = mapa_perguntas_validas.get(perguntaId)
@@ -538,7 +538,6 @@ class GerarRelatorioModuloView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-# VIEW HUB
 class SearchRelatorio(APIView):
     permission_classes = [IsAuthenticated]
 
