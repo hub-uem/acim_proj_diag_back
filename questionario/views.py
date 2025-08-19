@@ -126,7 +126,6 @@ class ModuloView(APIView):
             if resposta_incompleta and resposta_incompleta.respostas:
                 respondidas = list(resposta_incompleta.respostas.keys())
 
-
             response_data = {
                 'nomeModulo': moduloObj.nome,
                 'dimensoes': dadosDimensoes,
