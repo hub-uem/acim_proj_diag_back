@@ -19,18 +19,18 @@ O sistema visa facilitar o processo de coleta de dados e geração de relatório
 ## Como Executar o Projeto
 
 ### Pré-requisitos
-- Python (3.12.3)
-- MySQL
+- Python (3.11.9)
+- MySQL  (8.0.39)
 
 ### Passos
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/Yoshifg/projeto_diagnostico_api.git
+   git clone https://github.com/hub-uem/acim_proj_diag_back.git
    ```
    
 2. Navegue até o diretório do projeto:
    ```bash
-   cd projeto_diagnostico_api
+   cd acim_proj_diag_back
    ```
 
 3. Crie um .env.local e adicione:
