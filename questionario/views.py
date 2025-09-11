@@ -266,6 +266,8 @@ class SalvarRespostasModuloView(APIView):
             respostaModuloObj.valorFinal = valorFinalModulo
             respostaModuloObj.save()
 
+            RespostaModuloIncompleta.objects.filter(usuario=usuario, modulo=modulo).delete()
+
         except Exception as e:
             return Response(
                 {'error': f'Erro ao salvar respostas no banco de dados: {str(e)}'},
