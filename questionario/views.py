@@ -475,12 +475,31 @@ class GerarRelatorioModuloView(APIView):
                 labels = ['Sem dados']
                 values = [0]
 
-            if setor_empresa == 'COMERCIO':
-                valores_comparacao = [200 for _ in labels]
-            elif setor_empresa == 'INDUSTRIA':
-                valores_comparacao = [300 for _ in labels]
-            else:
-                valores_comparacao = [400 for _ in labels]
+            labels = [resp.dimensao.titulo for resp in respostas_dimensoes]
+            values = [resp.valorFinal for resp in respostas_dimensoes]
+            if not labels:
+                labels = ['Sem dados']
+                values = [0]
+
+            valores_comparacao = []
+            for resp in respostas_dimensoes:
+                d = resp.dimensao
+                ultimas_datas_outros = RespostaDimensao.objects.filter(
+                    dimensao=d
+                ).exclude(usuario=usuario).values('usuario').annotate(
+                    max_data=Max('dataResposta')
+                )
+                valores_outros = []
+                for entry in ultimas_datas_outros:
+                    resposta = RespostaDimensao.objects.filter(
+                        usuario=entry['usuario'],
+                        dimensao=d,
+                        dataResposta=entry['max_data']
+                    ).first()
+                    if resposta:
+                        valores_outros.append(resposta.valorFinal)
+                media_outros = round(sum(valores_outros) / len(valores_outros), 2) if valores_outros else 0
+                valores_comparacao.append(media_outros)
 
             x = np.arange(len(labels))  # posições das barras
             width = 0.35  # largura das barras
