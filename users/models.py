@@ -47,16 +47,16 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     ]
 
     SETOR_CHOICES = [
-        ('Comercio', 'Comercio'),
-        ('Indústria', 'Industria'),
-        ('Serviço', 'Servico'),
+        ('COMERCIO', 'Comércio'),
+        ('INDUSTRIA', 'Indústria'),
+        ('SERVICO', 'Serviço'),
     ]
 
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(max_length=255, unique=True)
     cnpj = BRCNPJField(max_length=14, unique=True)
     porte = models.CharField(max_length=20, choices=PORTE_CHOICES, default='PL')
-    setor = models.CharField(max_length=20, choices=SETOR_CHOICES, default='Comercio')
+    setor = models.CharField(max_length=20, choices=SETOR_CHOICES, default='COMERCIO')
 
     registration_date = models.DateTimeField(default=timezone.now)
     deactivation_date = models.DateTimeField(null=True, blank=True)

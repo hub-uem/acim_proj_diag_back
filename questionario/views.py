@@ -473,9 +473,9 @@ class GerarRelatorioModuloView(APIView):
                 labels = ['Sem dados']
                 values = [0]
 
-            if setor_empresa == 'Comercio':
+            if setor_empresa == 'COMERCIO':
                 valores_comparacao = [200 for _ in labels]
-            elif setor_empresa == 'Industria':
+            elif setor_empresa == 'INDUSTRIA':
                 valores_comparacao = [300 for _ in labels]
             else:
                 valores_comparacao = [400 for _ in labels]

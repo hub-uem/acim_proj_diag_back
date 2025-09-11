@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='useraccount',
             name='setor',
-            field=models.CharField(choices=[('Comercio', 'Comercio'), ('Indústria', 'Indústria'), ('Serviço', 'Serviço')], default='Comercio', max_length=20),
+            field=models.CharField(choices=[('COMERCIO', 'Comércio'), ('INDUSTRIA', 'Indústria'), ('SERVICO', 'Serviço')], default='COMERCIO', max_length=20),
         ),
     ]
