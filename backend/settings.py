@@ -119,8 +119,6 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 
 
-
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 

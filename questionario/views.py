@@ -156,7 +156,7 @@ class SalvarRespostasModuloView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        respostasData = timezone.localtime(request.data.get('respostas'))
+        respostasData = request.data.get('respostas')
 
         if respostasData is None:
             return Response(
@@ -473,9 +473,9 @@ class GerarRelatorioModuloView(APIView):
                 labels = ['Sem dados']
                 values = [0]
 
-            if setor_empresa == 'Setor A':
+            if setor_empresa == 'Comercio':
                 valores_comparacao = [200 for _ in labels]
-            elif setor_empresa == 'Setor B':
+            elif setor_empresa == 'Industria':
                 valores_comparacao = [300 for _ in labels]
             else:
                 valores_comparacao = [400 for _ in labels]
